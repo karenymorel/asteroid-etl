@@ -14,5 +14,24 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  mage:
+    image: mageai/mageai:latest
+    container_name: nasa_mage_orchestrator
+    command: mage start asteroid_etl_pipeline
+    ports:
+      - "6789:6789"
+    environment:
+      USER_CODE_PATH: /home/src
+      REQUIRE_USER_AUTHENTICATION: "0"
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      NASA_API_KEY: ${NASA_API_KEY}
+    volumes:
+      - .:/home/src
+    restart: always
+
 volumes:
   postgres_data:
