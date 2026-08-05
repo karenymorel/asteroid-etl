@@ -2,6 +2,9 @@
 
 An end-to-end, modular, and containerized data engineering pipeline (ETL) built in Python to extract daily near-Earth asteroid data from NASA's NeoWs API, validate and transform the telemetry with Pydantic, load it into PostgreSQL, orchestrate execution with Mage.ai, and serve interactive analytics & AI query capabilities via Streamlit.
 
+<img width="1879" height="837" alt="image" src="https://github.com/user-attachments/assets/e73093b7-120c-49a0-8f23-cfff39b32ef5" />
+🚀 Live version: [https://asteroid-etl.streamlit.app/]
+
 ## — Pipeline Architecture
 
 ```text
