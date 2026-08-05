@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def get_secret(key: str, default: str = None) -> str:
     try:
         if key in st.secrets:
@@ -71,7 +72,7 @@ def load_data_from_postgres():
         return pd.DataFrame()
 
 # --- MAIN APP HEADER ---
-st.title("☄️ NASA Asteroid Analytics & Data Assistant AI")
+st.title("☄️ NASA Asteroid Analytics & Space Intelligence")
 st.markdown("End-to-End ETL Data Pipeline & Interactive Analytics Platform")
 
 # Fetch Data
@@ -81,117 +82,24 @@ if df.empty:
     st.warning("⚠️ No data found in PostgreSQL. Ensure the pipeline ran successfully and Docker is active.")
     st.stop()
 
-# --- TABS LAYOUT ---
-tab1, tab2 = st.tabs(["📊 Analytics Dashboard", "💻 Data Analytics Assistant"])
-
-# TAB 1: ANALYTICS DASHBOARD
-with tab1:
-    st.header("Planetary Defense & Asteroid Metrics")
-    
-    # --- KPI CARDS ---
-    total_asteroids = df["asteroid_id"].nunique()
-    hazardous_count = df[df["is_potentially_hazardous"] == True]["asteroid_id"].nunique()
-    hazardous_pct = (hazardous_count / total_asteroids * 100) if total_asteroids > 0 else 0
-    closest_distance = df["miss_distance_km"].min()
-    max_velocity = df["velocity_kmh"].max()
-    
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric(label="Unique Asteroids", value=f"{total_asteroids:,}")
-    col2.metric(label="Potentially Hazardous", value=f"{hazardous_count:,}", delta=f"{hazardous_pct:.1f}% hazard rate", delta_color="inverse")
-    col3.metric(label="Closest Miss Distance", value=f"{closest_distance:,.0f} km")
-    col4.metric(label="Max Recorded Velocity", value=f"{max_velocity:,.0f} km/h")
-    
-    st.markdown("---")
-    
-    # --- PLOTLY CHARTS ---
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        st.subheader("Velocity vs. Miss Distance")
-        fig_scatter = px.scatter(
-            df,
-            x="miss_distance_km",
-            y="velocity_kmh",
-            color="is_potentially_hazardous",
-            hover_name="name",
-            labels={
-                "miss_distance_km": "Miss Distance (km)",
-                "velocity_kmh": "Velocity (km/h)",
-                "is_potentially_hazardous": "Hazardous?"
-            },
-            color_discrete_map={True: "#EF553B", False: "#636EFA"},
-            template="plotly_dark"
-        )
-        st.plotly_chart(fig_scatter, use_container_width=True)
-        
-    with c2:
-        st.subheader("Asteroid Diameter by Hazard Class")
-        
-        df_diameter_filtered = df[(df["diameter_max_meters"] > 0) & (df["diameter_max_meters"] <= 2000)]
-        
-        fig_box = px.box(
-            df_diameter_filtered,
-            x="is_potentially_hazardous",
-            y="diameter_max_meters",
-            color="is_potentially_hazardous",
-            labels={
-                "diameter_max_meters": "Max Diameter (Meters)",
-                "is_potentially_hazardous": "Potentially Hazardous?"
-            },
-            color_discrete_map={True: "#EF553B", False: "#636EFA"},
-            template="plotly_dark"
-        )
-        st.plotly_chart(fig_box, use_container_width=True)
-        
-    # --- DATA EXPLORER & FILTERS ---
-    st.subheader("🔍 Data Explorer")
-    
-    hazard_filter = st.radio(
-        "Filter by Hazard Status:",
-        options=["All", "Hazardous Only", "Non-Hazardous Only"],
-        horizontal=True
-    )
-    
-    filtered_df = df.copy()
-    if hazard_filter == "Hazardous Only":
-        filtered_df = filtered_df[filtered_df["is_potentially_hazardous"] == True]
-    elif hazard_filter == "Non-Hazardous Only":
-        filtered_df = filtered_df[filtered_df["is_potentially_hazardous"] == False]
-        
-    st.dataframe(
-        filtered_df[[
-            "name", "approach_date", "velocity_kmh", "miss_distance_km",
-            "diameter_min_meters", "diameter_max_meters", "is_potentially_hazardous"
-        ]],
-        use_container_width=True
-    )
-
-# ==========================================
-# TAB 2: NEO ANALYTICS AI ASSISTANT
-# ==========================================
-with tab2:
-    st.header("💻 Data Analytics Assistant")
-    st.markdown(
-        "Query the astronomical dataset using natural language powered by LLM data intelligence."
-    )
+# SIDEBAR: NEO ANALYTICS AI ASSISTANT
+with st.sidebar:
+    st.header("🤖 NEO AI Assistant")
+    st.markdown("Query the dataset using natural language.")
     
     if not GROQ_API_KEY:
-        st.warning("⚠️ GROQ_API_KEY not found in `.env`. Please add your API key to enable the AI Assistant.")
+        st.warning("⚠️ GROQ_API_KEY not found. Add it to secrets to enable AI.")
     else:
         try:
             from groq import Groq
             client = Groq(api_key=GROQ_API_KEY)
             
-            # Professional initial message
+            # Initial Assistant Message
             if "messages" not in st.session_state:
                 st.session_state.messages = [
                     {
                         "role": "assistant",
-                        "content": (
-                            "Hello! I am your Near-Earth Object (NEO) Data Assistant. "
-                            "I can help you analyze asteroid telemetry, orbital velocities, miss distances, "
-                            "and hazard evaluations based on NASA's dataset. How can I assist your analysis today?"
-                        )
+                        "content": "Hello! I am your NEO Data Assistant. How can I assist your analysis today?"
                     }
                 ]
                 
@@ -201,42 +109,68 @@ with tab2:
                     st.markdown(message["content"])
                     
             # User Prompt Input
-            if prompt := st.chat_input("Ask a data query (e.g., Summary of hazardous objects in 2025)..."):
-                # Display user message
+            if prompt := st.chat_input("Ask a data query..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 with st.chat_message("user"):
                     st.markdown(prompt)
                     
-                # Prepare System Prompt with Data Context
-                summary_context = (
-                    f"Dataset Summary & Telemetry Context:\n"
-                    f"- Total Unique Asteroids: {total_asteroids}\n"
-                    f"- Hazardous Asteroids Count: {hazardous_count} ({hazardous_pct:.2f}% of total)\n"
-                    f"- Minimum Miss Distance Recorded: {closest_distance:,.2f} km\n"
-                    f"- Maximum Recorded Velocity: {max_velocity:,.2f} km/h\n"
-                    f"\nTop 5 Closest Approaches in Dataset:\n"
-                    f"{df.sort_values('miss_distance_km')[['name', 'approach_date', 'miss_distance_km', 'velocity_kmh', 'is_potentially_hazardous']].head(5).to_string(index=False)}"
-                )
+                total_asteroids = df["asteroid_id"].nunique()
+                hazardous_df = df[df["is_potentially_hazardous"] == True]
+                non_hazardous_df = df[df["is_potentially_hazardous"] == False]
                 
-                # Professional & Objective System Instruction
+                hazardous_count = hazardous_df["asteroid_id"].nunique()
+                hazardous_pct = (hazardous_count / total_asteroids * 100) if total_asteroids > 0 else 0
+                closest_distance = df["miss_distance_km"].min()
+                max_velocity = df["velocity_kmh"].max()
+                
+                # Diameter metrics
+                max_diameter = df["diameter_max_meters"].max()
+                avg_haz_diameter = hazardous_df["diameter_max_meters"].mean() if not hazardous_df.empty else 0
+                avg_non_haz_diameter = non_hazardous_df["diameter_max_meters"].mean() if not non_hazardous_df.empty else 0
+                
+                # Top tables for exact queries
+                top_largest = df.sort_values("diameter_max_meters", ascending=False)[
+                    ["name", "diameter_max_meters", "is_potentially_hazardous"]
+                ].drop_duplicates("name").head(5).to_string(index=False)
+                
+                top_closest = df.sort_values("miss_distance_km", ascending=True)[
+                    ["name", "miss_distance_km", "is_potentially_hazardous"]
+                ].drop_duplicates("name").head(5).to_string(index=False)
+
+                summary_context = f"""
+                Dataset Telemetry Context:
+                - Total Unique Asteroids: {total_asteroids}
+                - Potentially Hazardous Count: {hazardous_count} ({hazardous_pct:.1f}%)
+                - Max Diameter Recorded: {max_diameter:,.2f} meters
+                - Average Hazardous Diameter: {avg_haz_diameter:,.2f} meters
+                - Average Non-Hazardous Diameter: {avg_non_haz_diameter:,.2f} meters
+                - Closest Miss Distance: {closest_distance:,.2f} km
+                - Max Recorded Velocity: {max_velocity:,.2f} km/h
+
+                Top 5 Largest Asteroids by Diameter:
+                {top_largest}
+
+                Top 5 Closest Approaching Asteroids:
+                {top_closest}
+                """
+                
                 system_instruction = (
-                    "You are a professional Data Analytics Assistant specialized in astronomical telemetry "
-                    "and Near-Earth Object (NEO) datasets. Answer user questions objectively, concisely, "
-                    "and accurately based strictly on the dataset context provided. Maintain a professional, "
-                    "data-driven, and analytical tone in English."
+                    "You are a professional Data Analytics Assistant specialized in Near-Earth Object (NEO) telemetry. "
+                    "Answer questions accurately, concisely, and objectively in English based on the dataset telemetry provided. "
+                    "You have exact diameter, velocity, distance, and top asteroid lists in your context."
                 )
                 
                 # Query LLM
                 with st.chat_message("assistant"):
-                    with st.spinner("Processing telemetry data..."):
+                    with st.spinner("Analyzing telemetry data..."):
                         response = client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[
                                 {"role": "system", "content": system_instruction},
-                                {"role": "system", "content": f"Data Context:\n{summary_context}"},
+                                {"role": "system", "content": summary_context},
                                 *[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
                             ],
-                            temperature=0.2, # Lower temperature for more factual responses
+                            temperature=0.2,
                             max_tokens=400
                         )
                         reply = response.choices[0].message.content
@@ -244,4 +178,70 @@ with tab2:
                         st.session_state.messages.append({"role": "assistant", "content": reply})
                         
         except Exception as e:
-            st.error(f"Error initializing AI Assistant: {e}")
+            st.error(f"AI Assistant Error: {e}")
+
+# MAIN PAGE: ANALYTICS DASHBOARD
+st.header("Planetary Telemetry & Hazard Metrics")
+
+# --- KPI CARDS ---
+total_asteroids = df["asteroid_id"].nunique()
+hazardous_count = df[df["is_potentially_hazardous"] == True]["asteroid_id"].nunique()
+hazardous_pct = (hazardous_count / total_asteroids * 100) if total_asteroids > 0 else 0
+closest_distance = df["miss_distance_km"].min()
+max_velocity = df["velocity_kmh"].max()
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric(label="Unique Asteroids", value=f"{total_asteroids:,}")
+col2.metric(label="Potentially Hazardous", value=f"{hazardous_count:,}", delta=f"{hazardous_pct:.1f}% hazard rate", delta_color="inverse")
+col3.metric(label="Closest Miss Distance", value=f"{closest_distance:,.0f} km")
+col4.metric(label="Max Recorded Velocity", value=f"{max_velocity:,.0f} km/h")
+
+st.markdown("---")
+
+# --- PLOTLY CHARTS (LIGHT THEME) ---
+c1, c2 = st.columns(2)
+
+COLOR_MAP = {True: "#D90429", False: "#0077B6"}
+
+with c1:
+    st.subheader("Velocity vs. Miss Distance")
+    fig_scatter = px.scatter(
+        df,
+        x="miss_distance_km",
+        y="velocity_kmh",
+        color="is_potentially_hazardous",
+        hover_name="name",
+        labels={"miss_distance_km": "Miss Distance (km)", "velocity_kmh": "Velocity (km/h)", "is_potentially_hazardous": "Hazardous?"},
+        color_discrete_map=COLOR_MAP,
+        template="plotly_white"
+    )
+    st.plotly_chart(fig_scatter, use_container_width=True)
+    
+with c2:
+    st.subheader("Asteroid Diameter by Hazard Class")
+    df_diameter_filtered = df[(df["diameter_max_meters"] > 0) & (df["diameter_max_meters"] <= 2000)]
+    fig_box = px.box(
+        df_diameter_filtered,
+        x="is_potentially_hazardous",
+        y="diameter_max_meters",
+        color="is_potentially_hazardous",
+        labels={"diameter_max_meters": "Max Diameter (Meters)", "is_potentially_hazardous": "Potentially Hazardous?"},
+        color_discrete_map=COLOR_MAP,
+        template="plotly_white"
+    )
+    st.plotly_chart(fig_box, use_container_width=True)
+    
+# --- DATA EXPLORER & FILTERS ---
+st.subheader("🔍 Data Explorer")
+hazard_filter = st.radio("Filter by Hazard Status:", options=["All", "Hazardous Only", "Non-Hazardous Only"], horizontal=True)
+
+filtered_df = df.copy()
+if hazard_filter == "Hazardous Only":
+    filtered_df = filtered_df[filtered_df["is_potentially_hazardous"] == True]
+elif hazard_filter == "Non-Hazardous Only":
+    filtered_df = filtered_df[filtered_df["is_potentially_hazardous"] == False]
+    
+st.dataframe(
+    filtered_df[["name", "approach_date", "velocity_kmh", "miss_distance_km", "diameter_min_meters", "diameter_max_meters", "is_potentially_hazardous"]],
+    use_container_width=True
+)
