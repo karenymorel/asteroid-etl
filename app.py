@@ -7,13 +7,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-DB_SSLMODE = os.getenv("DB_SSLMODE", "require")
+def get_secret(key: str, default: str = None) -> str:
+    try:
+        if key in st.secrets:
+            return str(st.secrets[key])
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
+# --- DB & API CONFIGURATION ---
+DB_HOST = get_secret("DB_HOST", "localhost")
+DB_PORT = get_secret("DB_PORT", "5432")
+DB_NAME = get_secret("DB_NAME")
+DB_USER = get_secret("DB_USER")
+DB_PASSWORD = get_secret("DB_PASSWORD")
+GROQ_API_KEY = get_secret("GROQ_API_KEY")
+
+if DB_HOST in ["localhost", "127.0.0.1", "db"]:
+    DB_SSLMODE = "disable"
+else:
+    DB_SSLMODE = get_secret("DB_SSLMODE", "require")
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -54,7 +67,7 @@ def load_data_from_postgres():
         conn.close()
         return df
     except Exception as e:
-        st.error(f"❌ Could not connect to PostgreSQL: {e}")
+        st.error(f"❌ Could not connect to PostgreSQL ({DB_HOST}): {e}")
         return pd.DataFrame()
 
 # --- MAIN APP HEADER ---
